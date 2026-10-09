@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GridPilot.Data", "GridPilot.Data\GridPilot.Data.csproj", "{1F4CDEC3-5F08-4393-A6FB-25BD42670EBC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GridPilot.Core", "GridPilot.Core\GridPilot.Core.csproj", "{890A57D0-5DB8-4125-9E9F-218D0C89C27B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GridPilot.UI", "GridPilot.UI\GridPilot.UI.csproj", "{25A67A59-95A7-4D40-AA16-F125FE49EE36}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1F4CDEC3-5F08-4393-A6FB-25BD42670EBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1F4CDEC3-5F08-4393-A6FB-25BD42670EBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1F4CDEC3-5F08-4393-A6FB-25BD42670EBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1F4CDEC3-5F08-4393-A6FB-25BD42670EBC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{890A57D0-5DB8-4125-9E9F-218D0C89C27B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{890A57D0-5DB8-4125-9E9F-218D0C89C27B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{890A57D0-5DB8-4125-9E9F-218D0C89C27B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{890A57D0-5DB8-4125-9E9F-218D0C89C27B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{25A67A59-95A7-4D40-AA16-F125FE49EE36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{25A67A59-95A7-4D40-AA16-F125FE49EE36}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{25A67A59-95A7-4D40-AA16-F125FE49EE36}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{25A67A59-95A7-4D40-AA16-F125FE49EE36}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
