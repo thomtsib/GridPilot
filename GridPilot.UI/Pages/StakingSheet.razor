@@ -1,0 +1,304 @@
+@page "/staking-sheet"
+@inject NetworkStudyService StudyService
+@using GridPilot.Core.Models
+@using GridPilot.Core.Models.Topography
+@using GridPilot.Core.Models.Electrical
+@using System.Globalization
+
+<PageTitle>GridPilot - Φύλλο Πασσαλώσεως & Γραφικά</PageTitle>
+
+<h3>Φύλλο Πασσαλώσεως & Γραφική Απεικόνιση</h3>
+
+@if (report == null)
+{
+    <div class="alert alert-info">
+        Δεν υπάρχουν υπολογισμένα δεδομένα μελέτης. Παρακαλώ μεταβείτε στη σελίδα <a href="/study">Νέα Μελέτη</a> για εισαγωγή σημείων.
+    </div>
+}
+else
+{
+    <!-- Tabs Εναλλαγής Προβολής -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "table" ? "active" : "")" @onclick='() => activeTab = "table"'>
+                📊 Πίνακας Φύλλου Πασσαλώσεως
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "topview" ? "active" : "")" @onclick='() => activeTab = "topview"'>
+                🗺️ Κάτοψη (X, Y)
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "profile" ? "active" : "")" @onclick='() => activeTab = "profile"'>
+                📐 Πλάγια Όψη / Μηκοτομή (Distance, Z)
+            </button>
+        </li>
+    </ul>
+
+    @if (activeTab == "table")
+    {
+        <!-- 1. ΠΙΝΑΚΑΣ ΦΥΛΛΟΥ ΠΑΣΣΑΛΩΣΕΩΣ -->
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Α/Α</th>
+                        <th>Σημείο / Περιγραφή</th>
+                        <th>Μερικό Άνοιγμα L (m)</th>
+                        <th>Αθροιστικό Μήκος (m)</th>
+                        <th>Υψόμετρο Z (m)</th>
+                        <th>Γωνία Εκτροπής θ (°)</th>
+                        <th>Τύπος Στύλου</th>
+                        <th>Ύψος H (m)</th>
+                        <th>Βάθος Θεμελίωσης (m)</th>
+                        <th>Αντιστήριξη (Επίτονος)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        double cumLength = 0;
+                    }
+                    @for (int i = 0; i < points.Count; i++)
+                    {
+                        var pt = points[i];
+                        var span = i < report.Spans.Count ? report.Spans[i] : null;
+                        var pole = i < report.PoleSelections.Count ? report.PoleSelections[i] : null;
+                        
+                        if (i > 0 && i - 1 < report.Spans.Count)
+                        {
+                            cumLength += report.Spans[i - 1].HorizontalDistance;
+                        }
+
+                        <tr>
+                            <td><strong>S-@(i + 1)</strong></td>
+                            <td>@pt.Description</td>
+                            <td>@(span != null ? span.HorizontalDistance.ToString("F2") : "-")</td>
+                            <td>@cumLength.ToString("F2")</td>
+                            <td>@pt.Z.ToString("F2")</td>
+                            <td>@(span != null ? span.DeflectionAngleDegrees.ToString("F1") + "°" : "0.0°")</td>
+                            <td><span class="badge bg-primary">@(pole?.PoleType ?? "10E")</span></td>
+                            <td>@(pole?.HeightMeters.ToString("F1") ?? "10.0") m</td>
+                            <td>@(pole?.EmbedmentDepthMeters.ToString("F2") ?? "1.50") m</td>
+                            <td>@(pole?.GuyWireConfig ?? "None")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else if (activeTab == "topview")
+    {
+        <!-- 2. ΓΡΑΦΙΚΟ ΚΑТОΨΗΣ (SVG) -->
+        <div class="card p-3 bg-light text-center">
+            <h5>Κάτοψη Όδευσης Δικτύου (Συντεταγμένες ΕΓΣΑ '87)</h5>
+            <svg width="100%" height="450" viewBox="0 0 800 450" class="border bg-white shadow-sm rounded">
+                <!-- Πλέγμα φόντου -->
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f0f0f0" stroke-width="1" />
+                </pattern>
+                <rect width="100%" height="100%" fill="url(#grid)" />
+
+                <!-- Γραμμή Όδευσης (Σύνδεση Στύλων) -->
+                <polyline points="@svgTopViewPolyline" fill="none" stroke="#0056b3" stroke-width="3" stroke-dasharray="5,2" />
+
+                <!-- Στύλοι ως Κύκλοι με Labels -->
+                @foreach (var pt in topViewRenderPoints)
+                {
+                    <g>
+                        <circle cx="@pt.SvgXStr" cy="@pt.SvgYStr" r="8" fill="#d9534f" stroke="#333" stroke-width="2" />
+                        <text x="@pt.SvgXStr" y="@pt.SvgLabelYStr" font-size="12" font-weight="bold" text-anchor="middle" fill="#333">
+                            S-@pt.Id (@pt.Label)
+                        </text>
+                    </g>
+                }
+            </svg>
+            <small class="text-muted mt-2">🔴 Κόκκινοι κύκλοι: Θέσεις Στύλων | 🟦 Μπλε διακεκομμένη γραμμή: Εναέριο Δίκτυο</small>
+        </div>
+    }
+    else if (activeTab == "profile")
+    {
+        <!-- 3. ΓΡΑΦΙΚΟ ΜΗΚОТОΜΗΣ / ΠΛΑΓΙΑΣ ΟΨΗΣ (SVG) -->
+        <div class="card p-3 bg-light text-center">
+            <h5>Πλάγια Όψη / Μηκοτομή (Καθ' ύψος Διατομή & Βέλος Κάμψης)</h5>
+            <svg width="100%" height="450" viewBox="0 0 800 450" class="border bg-white shadow-sm rounded">
+                <!-- Γραμμή Εδάφους -->
+                <polyline points="@svgGroundPolyline" fill="none" stroke="#8B4513" stroke-width="3" />
+
+                <!-- Διακεκομμένη Γραμμή Ασφαλείας (5.5m πάνω από το έδαφος) -->
+                <polyline points="@svgSafetyPolyline" fill="none" stroke="#ffc107" stroke-width="2" stroke-dasharray="4,4" />
+
+                <!-- Καμπύλη Αγωγού / Βέλος Κάμψης (Sag) -->
+                <path d="@svgConductorPath" fill="none" stroke="#0275d8" stroke-width="2.5" />
+
+                <!-- Στύλοι & Θεμελιώσεις -->
+                @foreach (var p in profileRenderPoles)
+                {
+                    <g>
+                        <!-- Σώμα Στύλου -->
+                        <line x1="@p.SvgXStr" y1="@p.SvgGroundYStr" x2="@p.SvgXStr" y2="@p.SvgTopYStr" stroke="#222" stroke-width="5" />
+                        <!-- Θεμελίωση (Κάτω από το έδαφος) -->
+                        <line x1="@p.SvgXStr" y1="@p.SvgGroundYStr" x2="@p.SvgXStr" y2="@p.SvgFoundationYStr" stroke="#666" stroke-width="3" stroke-dasharray="2,2" />
+                        <!-- Labels Στύλου -->
+                        <text x="@p.SvgXStr" y="@p.SvgLabelYStr" font-size="11" font-weight="bold" text-anchor="middle">
+                            S-@p.Id
+                        </text>
+                        <text x="@p.SvgXStr" y="@p.SvgTopLabelYStr" font-size="10" fill="#0275d8" text-anchor="middle">
+                            H=@p.HeightStr m
+                        </text>
+                    </g>
+                }
+            </svg>
+            <div class="d-flex justify-content-center gap-4 mt-2">
+                <small style="color: #8B4513;">🟤 Καφέ Γραμμή: Έδαφος</small>
+                <small style="color: #ffc107;">🟡 Κίτρινη Διακεκομμένη: Όριο Ασφαλείας (5.5m)</small>
+                <small style="color: #0275d8;">🔵 Μπλε Καμπύλη: Αγωγός (Βέλος Κάμψης)</small>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private string activeTab = "table";
+    private StudyReport? report;
+    private List<SurveyPoint> points = new();
+
+    // Data Models για SVG Rendering
+    private List<TopViewPt> topViewRenderPoints = new();
+    private string svgTopViewPolyline = "";
+
+    private List<ProfilePole> profileRenderPoles = new();
+    private string svgGroundPolyline = "";
+    private string svgSafetyPolyline = "";
+    private string svgConductorPath = "";
+
+    protected override void OnInitialized()
+    {
+        // Παραδειγματικά σημεία αν δεν έχει προηγηθεί εκτέλεση
+        points = new List<SurveyPoint>
+        {
+            new(1, 437348.20, 4517449.42, 507.90, "Υ/Σ ΜΤ/ΧΤ"),
+            new(2, 437200.00, 4517520.00, 508.50, "Στύλος 2 (Γωνία)"),
+            new(3, 437036.74, 4517864.47, 510.06, "Μετρητής Ν5 (Τέρμα)")
+        };
+
+        var elecReq = new VoltageDropRequest
+        {
+            LoadKva = 85,
+            LineVoltageVolts = 400,
+            LengthMeters = 125,
+            Conductor = new ConductorSpecs("ΣΚ 4x50 AL", 0.641, 0.09, 145, 0.62)
+        };
+
+        report = StudyService.RunFullStudy(points, elecReq);
+
+        // Υπολογισμός SVG Μεγεθών & Κλιμάκωσης
+        CalculateSvgTransforms();
+    }
+private void CalculateSvgTransforms()
+{
+    if (points.Count < 2) return;
+
+    // 1. ΚΑΤΟΨΗ (Top View) Transformation
+    double minX = points.Min(p => p.X); double maxX = points.Max(p => p.X);
+    double minY = points.Min(p => p.Y); double maxY = points.Max(p => p.Y);
+    
+    double rangeX = Math.Max(maxX - minX, 1.0);
+    double rangeY = Math.Max(maxY - minY, 1.0);
+
+    topViewRenderPoints.Clear();
+    var topPolyList = new List<string>();
+
+    foreach (var p in points)
+    {
+        double svgX = 60 + ((p.X - minX) / rangeX) * 680;
+        double svgY = 390 - ((p.Y - minY) / rangeY) * 330;
+
+        topViewRenderPoints.Add(new TopViewPt(p.PointId, svgX, svgY, p.Description));
+        topPolyList.Add($"{svgX.ToString("F1", CultureInfo.InvariantCulture)},{svgY.ToString("F1", CultureInfo.InvariantCulture)}");
+    }
+    svgTopViewPolyline = string.Join(" ", topPolyList);
+
+    // 2. ΜΗΚΟΤΟΜΗ (Profile View) Transformation
+    double cumDist = 0;
+    var profileDistances = new List<double> { 0 };
+    for (int i = 0; i < points.Count - 1; i++)
+    {
+        // Ασφαλής προσπέλαση του Spans[i]
+        double spanDist = (report != null && i < report.Spans.Count) 
+            ? report.Spans[i].HorizontalDistance 
+            : 40.0;
+            
+        cumDist += spanDist;
+        profileDistances.Add(cumDist);
+    }
+
+    double maxDist = Math.Max(cumDist, 1.0);
+    double minZ = points.Min(p => p.Z) - 2;
+    double maxZ = points.Max(p => p.Z) + 12;
+    double rangeZ = Math.Max(maxZ - minZ, 1.0);
+
+    profileRenderPoles.Clear();
+    var groundPolyList = new List<string>();
+    var safetyPolyList = new List<string>();
+    var conductorPathList = new List<string>();
+
+    for (int i = 0; i < points.Count; i++)
+    {
+        double dist = i < profileDistances.Count ? profileDistances[i] : cumDist;
+        double z = points[i].Z;
+
+        // Ασφαλής προσπέλαση του PoleSelections[i] με έλεγχο ορίου
+        double poleHeight = (report != null && i < report.PoleSelections.Count) 
+            ? report.PoleSelections[i].HeightMeters 
+            : 10.0;
+
+        double svgX = 60 + (dist / maxDist) * 680;
+        double svgGroundY = 380 - ((z - minZ) / rangeZ) * 300;
+        double svgTopY = 380 - (((z + poleHeight) - minZ) / rangeZ) * 300;
+        double svgSafetyY = 380 - (((z + 5.5) - minZ) / rangeZ) * 300;
+
+        profileRenderPoles.Add(new ProfilePole(points[i].PointId, svgX, svgGroundY, svgTopY, poleHeight));
+        
+        groundPolyList.Add($"{svgX.ToString("F1", CultureInfo.InvariantCulture)},{svgGroundY.ToString("F1", CultureInfo.InvariantCulture)}");
+        safetyPolyList.Add($"{svgX.ToString("F1", CultureInfo.InvariantCulture)},{svgSafetyY.ToString("F1", CultureInfo.InvariantCulture)}");
+    }
+
+    svgGroundPolyline = string.Join(" ", groundPolyList);
+    svgSafetyPolyline = string.Join(" ", safetyPolyList);
+
+    // Καμπύλη Αγωγού με παραβολικό βέλος κάμψης (Sag)
+    for (int i = 0; i < profileRenderPoles.Count - 1; i++)
+    {
+        var p1 = profileRenderPoles[i];
+        var p2 = profileRenderPoles[i + 1];
+
+        double midX = (p1.SvgX + p2.SvgX) / 2;
+        double sagPx = 18;
+        double midY = ((p1.SvgTopY + p2.SvgTopY) / 2) + sagPx;
+
+        if (i == 0)
+            conductorPathList.Add($"M {p1.SvgXStr} {p1.SvgTopYStr}");
+
+        conductorPathList.Add($"Q {midX.ToString("F1", CultureInfo.InvariantCulture)} {midY.ToString("F1", CultureInfo.InvariantCulture)} {p2.SvgXStr} {p2.SvgTopYStr}");
+    }
+    svgConductorPath = string.Join(" ", conductorPathList);
+}
+        private record TopViewPt(int Id, double SvgX, double SvgY, string Label)
+    {
+        public string SvgXStr => SvgX.ToString("F1", CultureInfo.InvariantCulture);
+        public string SvgYStr => SvgY.ToString("F1", CultureInfo.InvariantCulture);
+        public string SvgLabelYStr => (SvgY - 12).ToString("F1", CultureInfo.InvariantCulture);
+    }
+
+    private record ProfilePole(int Id, double SvgX, double SvgGroundY, double SvgTopY, double Height)
+    {
+        public string SvgXStr => SvgX.ToString("F1", CultureInfo.InvariantCulture);
+        public string SvgGroundYStr => SvgGroundY.ToString("F1", CultureInfo.InvariantCulture);
+        public string SvgTopYStr => SvgTopY.ToString("F1", CultureInfo.InvariantCulture);
+        public string SvgFoundationYStr => (SvgGroundY + 15).ToString("F1", CultureInfo.InvariantCulture);
+        public string SvgLabelYStr => (SvgGroundY + 30).ToString("F1", CultureInfo.InvariantCulture);
+        public string SvgTopLabelYStr => (SvgTopY - 8).ToString("F1", CultureInfo.InvariantCulture);
+        public string HeightStr => Height.ToString("F1", CultureInfo.InvariantCulture);
+    }
+}

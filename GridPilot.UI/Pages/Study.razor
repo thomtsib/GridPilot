@@ -1,0 +1,184 @@
+@page "/study"
+@inject NetworkStudyService StudyService
+@using GridPilot.Core.Models
+@using GridPilot.Core.Models.Topography
+@using GridPilot.Core.Models.Electrical
+@using System.IO
+
+<PageTitle>GridPilot - Νέα Μελέτη</PageTitle>
+
+<h3>Ηλεκτροδότηση Παροχής & Υπολογισμός Δικτύου</h3>
+
+<!-- Panel Παραμέτρων -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <label class="form-label"><strong>Ισχύς (kVA)</strong></label>
+        <input type="number" class="form-control" @bind="loadKva" />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label"><strong>Τάση (V)</strong></label>
+        <input type="number" class="form-control" @bind="lineVoltage" />
+    </div>
+</div>
+
+<!-- Εισαγωγή Αρχείου TXT -->
+<div class="card p-3 mb-4 bg-light">
+    <label class="form-label"><strong>Εισαγωγή Τοπογραφικών Σημείων από Αρχείο (.txt / .csv):</strong></label>
+    <InputFile OnChange="LoadTxtFile" accept=".txt,.csv" class="form-control mb-2" />
+    <small class="text-muted">
+        💡 Μορφή αρχείου ανά γραμμή: <code>X, Y, Z, Περιγραφή</code> (διαχωρισμός με κόμμα, ερωτηματικό, tab ή κενό).
+    </small>
+</div>
+
+<h4>Τοπογραφικά Σημεία (x, y, z)</h4>
+<table class="table table-bordered align-middle">
+    <thead class="table-dark">
+        <tr>
+            <th style="width: 80px;">ID</th>
+            <th>X (m)</th>
+            <th>Y (m)</th>
+            <th>Z (m)</th>
+            <th>Περιγραφή</th>
+            <th style="width: 100px;">Ενέργεια</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var p in surveyPoints)
+        {
+            <tr>
+                <td><strong>@p.PointId</strong></td>
+                <td><input type="number" class="form-control" @bind="p.X" step="0.01" /></td>
+                <td><input type="number" class="form-control" @bind="p.Y" step="0.01" /></td>
+                <td><input type="number" class="form-control" @bind="p.Z" step="0.01" /></td>
+                <td><input type="text" class="form-control" @bind="p.Description" /></td>
+                <td>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => RemovePoint(p)">
+                        Διαγραφή
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div class="mb-4">
+    <button class="btn btn-secondary me-2" @onclick="AddPoint">Προσθήκη Σημείου</button>
+    <button class="btn btn-primary" @onclick="Calculate">Εκτέλεση Μελέτης</button>
+</div>
+
+@if (report != null)
+{
+    <hr />
+    <div class="alert @(report.IsCompliant ? "alert-success" : "alert-danger") mt-3">
+        <h5>Αποτελέσματα Μελέτης</h5>
+        <p><strong>Πτώση Τάσης:</strong> @report.VoltageDrop.VoltageDropPercentage % (@(report.VoltageDrop.IsCompliant ? "Εντός Ορίων ΔΕΔΔΗΕ <= 4%" : "Εκτός Ορίων"))</p>
+        <p><strong>Συνολικό Μήκος:</strong> @report.TotalNetworkLengthMeters m</p>
+    </div>
+}
+
+@code {
+    private double loadKva = 85;
+    private double lineVoltage = 400;
+    private List<SurveyPointModel> surveyPoints = new();
+    private StudyReport? report;
+
+    protected override void OnInitialized()
+    {
+        // Αρχικά 2 παραδειγματικά σημεία
+        surveyPoints.Add(new SurveyPointModel { PointId = 1, X = 0, Y = 0, Z = 10, Description = "Υ/Σ ΜΤ/ΧΤ" });
+        surveyPoints.Add(new SurveyPointModel { PointId = 2, X = 125, Y = 0, Z = 11, Description = "Μετρητής Ν5" });
+    }
+
+    private void AddPoint()
+    {
+        int nextId = surveyPoints.Count + 1;
+        surveyPoints.Add(new SurveyPointModel { PointId = nextId, X = 0, Y = 0, Z = 0, Description = $"Στύλος {nextId}" });
+    }
+
+    private void RemovePoint(SurveyPointModel point)
+    {
+        surveyPoints.Remove(point);
+        
+        // Επαναρίθμηση των IDs ώστε να παραμένουν διαδοχικά (1, 2, 3...)
+        for (int i = 0; i < surveyPoints.Count; i++)
+        {
+            surveyPoints[i].PointId = i + 1;
+        }
+    }
+
+    private async Task LoadTxtFile(InputFileChangeEventArgs e)
+{
+    var file = e.File;
+    if (file == null) return;
+
+    using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024); // Όριο 1MB
+    using var reader = new StreamReader(stream);
+    
+    var loadedPoints = new List<SurveyPointModel>();
+    int idCounter = 1;
+
+    string? line;
+    while ((line = await reader.ReadLineAsync()) != null)
+    {
+        // Παράβλεψη κενών γραμμών ή σχολίων
+        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#") || line.StartsWith("//"))
+            continue;
+
+        // 1. Καθαρισμός άκρων από αγκύλες ({ }), κόμματα και κενά
+        string cleanLine = line.Trim('{', '}', ' ', '\r', '\n');
+
+        // 2. Διαχωρισμός με κόμμα ή ερωτηματικό
+        var parts = cleanLine.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                             .Select(p => p.Trim())
+                             .ToArray();
+        
+        // 3. Mapping: [0] = Σχόλιο, [1] = X, [2] = Y, [3] = Z
+        if (parts.Length >= 4)
+        {
+            string desc = parts[0];
+
+            if (double.TryParse(parts[1], System.Globalization.CultureInfo.InvariantCulture, out double x) &&
+                double.TryParse(parts[2], System.Globalization.CultureInfo.InvariantCulture, out double y) &&
+                double.TryParse(parts[3], System.Globalization.CultureInfo.InvariantCulture, out double z))
+            {
+                loadedPoints.Add(new SurveyPointModel
+                {
+                    PointId = idCounter++,
+                    X = x,
+                    Y = y,
+                    Z = z,
+                    Description = desc
+                });
+            }
+        }
+    }
+
+    if (loadedPoints.Count > 0)
+    {
+        surveyPoints = loadedPoints;
+    }
+}
+    private void Calculate()
+    {
+        var points = surveyPoints.Select(p => new SurveyPoint(p.PointId, p.X, p.Y, p.Z, p.Description)).ToList();
+        
+        var elecReq = new VoltageDropRequest
+        {
+            LoadKva = loadKva,
+            LineVoltageVolts = lineVoltage,
+            LengthMeters = points.Count > 1 ? Math.Sqrt(Math.Pow(points.Last().X - points.First().X, 2) + Math.Pow(points.Last().Y - points.First().Y, 2)) : 0,
+            Conductor = new ConductorSpecs("ΣΚ 4x50 AL", 0.641, 0.09, 145, 0.62)
+        };
+
+        report = StudyService.RunFullStudy(points, elecReq);
+    }
+
+    private class SurveyPointModel
+    {
+        public int PointId { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Z { get; set; }
+        public string Description { get; set; } = string.Empty;
+    }
+}

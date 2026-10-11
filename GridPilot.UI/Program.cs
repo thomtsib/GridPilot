@@ -1,16 +1,16 @@
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
-using GridPilot.UI.Data;
 using Microsoft.EntityFrameworkCore;
 using GridPilot.Data;
-
+using GridPilot.Core.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddSingleton<WeatherForecastService>();
+builder.Services.AddScoped<ITopographyEngine, TopographyEngine>();
+builder.Services.AddScoped<IElectricalEngine, ElectricalEngine>();
+builder.Services.AddScoped<IMechanicalEngine, MechanicalEngine>();
+builder.Services.AddScoped<NetworkStudyService>();
 
 // Ανάκτηση του Connection String από το appsettings.json
 var connectionString = builder.Configuration.GetConnectionString("AccessConnection");
