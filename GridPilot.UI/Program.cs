@@ -15,9 +15,10 @@ builder.Services.AddScoped<NetworkStudyService>();
 // Ανάκτηση του Connection String από το appsettings.json
 var connectionString = builder.Configuration.GetConnectionString("AccessConnection");
 
-// Καταχώρηση του IDbContextFactory με τον Jet Provider για MS Access
+// Καταχώρηση του IDbContextFactory με τον Sqlite Provider
 builder.Services.AddDbContextFactory<GridPilotContext>(options =>
-    options.UseJet(connectionString));
+    options.UseSqlite(builder.Configuration.GetConnectionString("SqliteConnection")));
+
 
 
 var app = builder.Build();
@@ -29,7 +30,7 @@ using (var scope = app.Services.CreateScope())
     using var context = contextFactory.CreateDbContext();
     
     // Εφαρμόζει αυτόματα τα Migrations και δημιουργεί τους πίνακες στην Access
-    context.Database.Migrate(); 
+     context.Database.EnsureCreated(); 
     
     // Γεμίζει τον Πίνακα V του ΔΕΔΔΗΕ
     DbSeeder.SeedParameters(context); 
