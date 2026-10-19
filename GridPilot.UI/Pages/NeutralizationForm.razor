@@ -1,0 +1,164 @@
+@page "/neutralization"
+@using GridPilot.Data.Models
+@using GridPilot.Core.Services
+@using GridPilot.Data
+@using Microsoft.EntityFrameworkCore
+@inject NeutralizationService CalcService
+@inject IDbContextFactory<GridPilotContext> DbFactory
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- 📝 ΑΡΙΣΤΕΡΗ ΣΤΗΛΗ: ΦΟΡΜΑ ΕΙΣΑΓΩΓΗΣ -->
+        <div class="col-md-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white d-flex align-items-center">
+                    <h5 class="mb-0">🔌 Μελέτη & Υπολογισμός Ουδετέρωσης (Λαμπρόπουλος)</h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="calculation" OnValidSubmit="HandleCalculation">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Όνομα Project / Θέση Στύλου</label>
+                            <input type="text" class="form-control" @bind-value="calculation.ProjectName" placeholder="π.χ. Αναχώρηση 3 - Στύλος 12" required />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">Ισχύς Μ/Σ (kVA)</label>
+                                <select class="form-select" @bind="calculation.TransformerKva">
+                                    <option value="160">160 kVA</option>
+                                    <option value="250">250 kVA</option>
+                                    <option value="400">400 kVA</option>
+                                    <option value="630">630 kVA</option>
+                                </select>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">Ασφάλεια (A)</label>
+                                <input type="number" class="form-control" @bind-value="calculation.FuseRatingAmps" min="25" max="400" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-7 mb-3">
+                                <label class="form-label fw-bold">Τύπος Κύριας Γράμμης</label>
+                                <select class="form-select" @bind="calculation.LineType">
+                                    <option value="4x50 AL">4x50 AL (Γυμνό Αλουμίνιο)</option>
+                                    <option value="4x120 ΣΚ">4x120 ΣΚ (Συνεστραμμένο)</option>
+                                    <option value="3x70+54.6">3x70+54.6 (Συνεστραμμένο)</option>
+                                </select>
+                            </div>
+                            <div class="col-5 mb-3">
+                                <label class="form-label fw-bold">Μήκος Γραμμής (m)</label>
+                                <input type="number" class="form-control" @bind-value="calculation.LineLengthMeters" min="1" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-7 mb-3">
+                                <label class="form-label fw-bold">Καλώδιο Παροχής</label>
+                                <select class="form-select" @bind="calculation.ServiceCableType">
+                                    <option value="2x6 CU">2x6 CU (Μονοφασική Παροχή)</option>
+                                    <option value="2x16 CU">2x16 CU (Παροχή Νο 05)</option>
+                                </select>
+                            </div>
+                            <div class="col-5 mb-3">
+                                <label class="form-label fw-bold">Μήκος Παροχής (m)</label>
+                                <input type="number" class="form-control" @bind-value="calculation.ServiceLengthMeters" min="1" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mt-2 fw-bold">⚡ Εκτέλεση Υπολογισμού & Αποθήκευση</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📊 ΔΕΞΙΑ ΣΤΗΛΗ: ΑΠΟΤΕΛΕΣΜΑΤΑ & STATUS -->
+        <div class="col-md-7">
+            @if (hasCalculated)
+            {
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-body text-center p-4 @(calculation.IsConditionMet ? "bg-light-success text-success" : "bg-light-danger text-danger")" style="border-radius: 8px;">
+                        @if (calculation.IsConditionMet)
+                        {
+                            <h3 class="fw-bold m-0">✅ ΕΠΑΡΚΕΙΑ ΟΥΔΕΤΕΡΩΣΗΣ</h3>
+                            <p class="mb-0 mt-2 text-dark">Το ρεύμα σφάλματος επαρκεί για την τήξη της ασφάλειας των @calculation.FuseRatingAmps A.</p>
+                        }
+                        else
+                        {
+                            <h3 class="fw-bold m-0">❌ ΑΝΕΠΑΡΚΕΙΑ ΟΥΔΕΤΕΡΩΣΗΣ</h3>
+                            <p class="mb-0 mt-2 text-dark">Κίνδυνος! Μειώστε το μήκος, αυξήστε τη διατομή ή χαμηλώστε το μέγεθος της ασφάλειας.</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-secondary text-white fw-bold">📐 Αναλυτικά Ηλεκτρικά Μεγέθη</div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <tbody>
+                                <tr>
+                                    <td><strong>Συνολική Ωμική Αντίσταση (R):</strong></td>
+                                    <td>@calculation.TotalR.ToString("F4") Ω</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Συνολική Επαγωγική Αντίσταση (X):</strong></td>
+                                    <td>@calculation.TotalX.ToString("F4") Ω</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Σύνθετη Αντίσταση Βρόχου (Z):</strong></td>
+                                    <td>@calculation.TotalZ.ToString("F4") Ω</td>
+                                </tr>
+                                <tr class="table-warning">
+                                    <td><strong>Ρεύμα Βραχυκύκλωσης στο Άκρο ($I_{\beta\rho}$):</strong></td>
+                                    <td><strong class="text-danger">@calculation.I_ShortCircuit.ToString("F1") A</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Απαιτούμενο Ρεύμα Τήξης (k × $I_{\text{ον}}$):</strong></td>
+                                    <td>@(calculation.FuseRatingAmps * 3.5) A (Με k = 3.5)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info text-center" role="alert">
+                    <h5 class="alert-heading fw-bold">💡 Έτοιμο για Υπολογισμό</h5>
+                    <p class="mb-0">Εισάγετε τα τεχνικά χαρακτηριστικά της γραμμής αριστερά για να ελέγξετε τη συνθήκη βραχυκύκλωσης.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-light-success { bg-color: #d1e7dd; background-color: #e8f5e9; }
+    .bg-light-danger { bg-color: #f8d7da; background-color: #ffebee; }
+</style>
+
+@code {
+    private NeutralizationCalculation calculation = new()
+    {
+        TransformerKva = 250,
+        FuseRatingAmps = 160,
+        LineLengthMeters = 200,
+        ServiceLengthMeters = 30
+    };
+
+    private bool hasCalculated = false;
+
+    private async Task HandleCalculation()
+    {
+        // 1. Εκτέλεση των μαθηματικών πράξεων στο Service του Core project
+        calculation = CalcService.Calculate(calculation);
+        hasCalculated = true;
+
+        // 2. transient αποθήκευση στην SQLite βάση δεδομένων μέσω του Factory
+        using var context = DbFactory.CreateDbContext();
+        context.NeutralizationCalculations.Add(calculation);
+        await context.SaveChangesAsync();
+    }
+}

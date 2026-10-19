@@ -12,7 +12,7 @@ namespace GridPilot.Data
         public DbSet<Customer> Customers { get; set; }
         public DbSet<CustomerSupply> CustomerSupplies { get; set; }
         public DbSet<LvSupplyParameter> LvSupplyParameters { get; set; } // Ο πίνακας της φωτογραφίας
-
+        public DbSet<NeutralizationCalculation> NeutralizationCalculations { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -21,6 +21,10 @@ namespace GridPilot.Data
             modelBuilder.Entity<Customer>()
                 .HasIndex(c => c.SupplyNumber)
                 .IsUnique();
+
+            modelBuilder.Entity<NeutralizationCalculation>()
+                .Property(p => p.I_ShortCircuit)
+                .HasConversion<double>();
         }
     }
 }
