@@ -11,6 +11,7 @@ builder.Services.AddScoped<ITopographyEngine, TopographyEngine>();
 builder.Services.AddScoped<IElectricalEngine, ElectricalEngine>();
 builder.Services.AddScoped<IMechanicalEngine, MechanicalEngine>();
 builder.Services.AddScoped<NetworkStudyService>();
+builder.Services.AddScoped<GridPilot.Core.CaseService>();
 
 // Ανάκτηση του Connection String από το appsettings.json
 var connectionString = builder.Configuration.GetConnectionString("AccessConnection");
@@ -22,6 +23,9 @@ builder.Services.AddDbContextFactory<GridPilotContext>(options =>
 
 
 var app = builder.Build();
+
+
+
 
 // Αυτόματος έλεγχος, δημιουργία βάσης/πινάκων και Seeding κατά την εκκίνηση
 using (var scope = app.Services.CreateScope())

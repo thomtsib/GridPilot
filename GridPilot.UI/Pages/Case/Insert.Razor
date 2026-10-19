@@ -1,0 +1,178 @@
+@page "/new-case"
+@using GridPilot.Data.Models
+@using GridPilot.Data
+@using GridPilot.Core
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<GridPilotContext> DbFactory
+
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <h2 class="text-primary font-weight-bold">📁 Νέα Υπόθεση</h2>
+        <p class="text-muted">Διαχείριση Μελετών - Τομέας Δυτικής Θεσσαλονίκης</p>
+    </div>
+
+    <div class="row">
+        <!-- ΑΡΙΣΤΕΡΗ ΣΤΗΛΗ: ΦΟΡΜΑ ΕΙΣΑΓΩΓΗΣ -->
+        <div class="col-lg-7">
+            <!-- 1. ΣΤΟΙΧΕΙΑ ΚΑΤΑΝΑΛΩΤΗ -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Στοιχεία Καταναλωτή</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Αριθμός Πρωτοκόλλου</label>
+                            <input type="text" class="form-control bg-light" @bind="protocolNumber" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Αριθμός Παροχής</label>
+                            <input type="text" class="form-control" @bind="customer.SupplyNumber" maxlength="8"
+                                placeholder="8-ψήφιος αριθμός" />
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Επωνυμία / Καταναλωτής</label>
+                            <input type="text" class="form-control" @bind="customer.FullName"
+                                placeholder="Όνομα ή Εταιρεία" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. ΤΟΠΟΘΕΣΙΑ -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Τοποθεσία Υπόθεσης</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Διεύθυνση (Οδός & Αριθμός)</label>
+                            <input type="text" class="form-control" @bind="customer.StreetAddress" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Δήμος</label>
+                            <input type="text" class="form-control" @bind="customer.Municipality" placeholder="π.χ. Δέλτα, Κορδελιού-Ευόσμου" />
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Συντεταγμένες</label>
+                            <input type="text" class="form-control" @bind="customer.Location" placeholder="π.χ. 40.6401, 22.9444" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. ΕΠΙΛΟΓΗ ΠΑΡΟΧΗΣ -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Τεχνικά Χαρακτηριστικά Αίτησης</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Επίπεδο Τάσης</label>
+                            <select class="form-select" @onchange="OnVoltageChanged">
+                                <option value="@VoltageType.LowVoltage">Χαμηλή Τάση (ΧΤ)</option>
+                                <option value="@VoltageType.MediumVoltage">Medium Voltage (ΜΤ)</option>
+                            </select>
+                        </div>
+
+                        @if (supply.VoltageType == VoltageType.LowVoltage)
+                        {
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Επιλογή Παροχής ΧΤ</label>
+                                <select class="form-select" @onchange="OnLvCodeChanged">
+                                    <option value="03">Νο 03 (8 kVA - Μονοφασική)</option>
+                                    <option value="05">Νο 05 (12 kVA - Μονοφασική)</option>
+                                    <option value="1" selected>Νο 1 (15 kVA - Τριφασική)</option>
+                                    <option value="2">Νο 2 (25 kVA - Τριφασική)</option>
+                                    <option value="3">Νο 3 (35 kVA - Τριφασική)</option>
+                                    <option value="4">Νο 4 (55 kVA - Τριφασική)</option>
+                                    <option value="5">Νο 5 (85 kVA - Τριφασική)</option>
+                                    <option value="6">Νο 6 (135 kVA - Τριφασική)</option>
+                                    <option value="7">Νο 7 (250 kVA - Τριφασική)</option>
+                                </select>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Συμφωνημένη Ισχύς ΜΤ (kVA)</label>
+                                <input type="number" class="form-control" @bind="supply.MvContractedPowerKva" step="50" min="50" />
+                                <div class="form-text text-info">💡 Πρέπει να είναι πολλαπλάσιο του 50 kVA</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Inject] private CaseService caseService { get; set; } = default!;
+    private Customer customer = new Customer();
+    private CustomerSupply supply = new CustomerSupply { VoltageType = VoltageType.LowVoltage };
+    private LvSupplyParameter? activeParam;
+    private string protocolNumber = "";
+    private string currentLvCode = "1";
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = await DbFactory.CreateDbContextAsync();
+        int totalCases = await context.Customers.CountAsync() + 1;
+        protocolNumber = $"ΔΘ-{DateTime.Now.Year}-{totalCases:D3}";
+        await LoadLvParameters();
+    }
+
+    private async Task OnVoltageChanged(ChangeEventArgs e)
+    {
+        string? stringValue = e.Value?.ToString();
+        
+
+        //if (Enum.TryParse(e.Value?.ToString(), out var result))
+        //{
+        //    supply.VoltageType = result;
+        //    if (result == VoltageType.LowVoltage)
+        //    {
+        //        await LoadLvParameters();
+        //    }
+        //    else
+        //    {
+        //        supply.MvContractedPowerKva = 50;
+        //        activeParam = null;
+        //    }
+
+        //}
+
+    }
+
+    private async Task OnLvCodeChanged(ChangeEventArgs e)
+    {
+        currentLvCode = e.Value?.ToString() ?? "1";
+        await LoadLvParameters();
+    }
+
+    private async Task LoadLvParameters()
+    {
+        //activeParam = await CaseService.GetLvParameterByCodeAsync(currentLvCode);
+    }
+
+    private async Task HandleSaveCase()
+    {
+        if (supply.VoltageType == VoltageType.LowVoltage && activeParam != null)
+        {
+            supply.LvSupplyParameterId = activeParam.Id;
+            supply.MvContractedPowerKva = null;
+        }
+
+        //await CaseService.SaveCaseAsync(customer, supply);
+        await caseService.SaveCaseAsync(customer, supply);
+        customer = new Customer();
+        supply = new CustomerSupply { VoltageType = VoltageType.LowVoltage };
+        using var context = await DbFactory.CreateDbContextAsync();
+        int totalCases = await context.Customers.CountAsync() + 1;
+        protocolNumber = $"ΔΘ-{DateTime.Now.Year}-{totalCases:D3}";
+        await LoadLvParameters();
+    }
+}

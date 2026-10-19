@@ -8,6 +8,18 @@
     }
   },
   "profiles": {
+    "HotReload-NoExe": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "commandLineArgs": "exec C:\\GridPilot\\GridPilot.UI\\bin\\Debug\\net8.0\\GridPilot.UI.dll",
+      "workingDirectory": "C:\\GridPilot\\GridPilot.UI",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5261",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
     "http": {
       "commandName": "Project",
       "dotnetRunMessages": true,

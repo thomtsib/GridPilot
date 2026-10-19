@@ -20,7 +20,10 @@ namespace GridPilot.Data.Models
         [Required]
         [MaxLength(150)]
         public string StreetAddress { get; set; } = string.Empty; // Οδός και Αριθμός
-        
+
+        [MaxLength(150)]
+        public string Location { get; set; } = string.Empty; // Συντεταγμένες
+
         [Required]
         [MaxLength(100)]
         public string Municipality { get; set; } = string.Empty; // Δήμος (π.χ. Κορδελιού-Ευόσμου, Δέλτα)
@@ -31,5 +34,6 @@ namespace GridPilot.Data.Models
         
         [ForeignKey(nameof(CustomerSupplyId))]
         public CustomerSupply Supply { get; set; }
+        
     }
 }
