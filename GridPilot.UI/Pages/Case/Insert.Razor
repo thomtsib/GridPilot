@@ -72,8 +72,8 @@
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Επίπεδο Τάσης</label>
                             <select class="form-select" @onchange="OnVoltageChanged">
-                                <option value="@VoltageType.LowVoltage">Χαμηλή Τάση (ΧΤ)</option>
-                                <option value="@VoltageType.MediumVoltage">Medium Voltage (ΜΤ)</option>
+                                <option value="LowVoltage">Χαμηλή Τάση (ΧΤ)</option>
+                                <option value="MediumVoltage">Medium Voltage (ΜΤ)</option>
                             </select>
                         </div>
 
@@ -105,6 +105,78 @@
                     </div>
                 </div>
             </div>
+
+            <div class="text-center mb-4">
+                <button class="btn btn-success btn-lg w-100 shadow-sm" @onclick="HandleSaveCase">
+                    💾 Αποθήκευση Υπόθεσης & Εκκίνηση Μελέτης
+                </button>
+            </div>
+        </div>
+
+        <!-- ΔΕΞΙΑ ΣΤΗΛΗ: REAL-TIME ΠΡΟΕΠΙΣΚΟΠΗΣΗ ΠΑΡΑΜΕΤΡΩΝ ΔΕΔΔΗΕ -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm position-sticky" style="top: 20px;">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📊 Τεχνικές Παράμετροι ΔΕΔΔΗΕ</h5>
+                    @if (supply.VoltageType == VoltageType.LowVoltage)
+                    {
+                        <span class="badge bg-info text-dark">Πίνακας V</span>
+                    }
+                </div>
+                <div class="card-body bg-light">
+                    @if (supply.VoltageType == VoltageType.LowVoltage && activeParam != null)
+                    {
+                        <div class="list-group list-group-flush shadow-sm rounded">
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Ισχύς Παροχής:</span>
+                                <span class="fw-bold text-primary">@activeParam.Kva kVA (@(activeParam.IsThreePhase ? "Τριφασική" : "Μονοφασική"))</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Γεν. Ασφάλεια Εγκ/στασης:</span>
+                                <span class="fw-bold">@activeParam.InternalInstallationFuse A</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Ασφάλεια Μετρητή:</span>
+                                <span class="fw-bold">@activeParam.MeterFuse A</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Μικροαυτόματος Μετρητή:</span>
+                                <span class="fw-bold">@activeParam.MeterCircuitBreaker A</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Ελάχ. Αναχώρηση Δικτύου:</span>
+                                <span class="fw-bold text-danger">@activeParam.MinNetworkDeparture A</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Τύπος Μετρητή:</span>
+                                <span class="fw-bold">@activeParam.MeterRating A</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Συγκεντρικό Καλώδιο (Cu):</span>
+                                <span class="fw-bold text-success">@activeParam.ConcentricCableCu mm²</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Καλώδιο X-LPE:</span>
+                                <span class="fw-bold text-success">@activeParam.XlpeCable mm²</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Ελάχ. Διατομή Πίνακα-Μετρ.:</span>
+                                <span class="fw-bold">@activeParam.MinLineCrossSection mm²</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Ελάχιστος Μ/Σ Υποσταθμού:</span>
+                                <span class="fw-bold text-warning bg-dark px-2 rounded">@activeParam.MinTransformerKva kVA</span>
+                            </div>
+                        </div>
+                    }
+                    else if (supply.VoltageType == VoltageType.MediumVoltage)
+                    {
+                        <div class="alert alert-warning mb-0 shadow-sm">
+                            💡 Επιλέχθηκε Μέση Τάση (ΜΤ). Οι τεχνικές παράμετροι καθορίζονται ανάλογα με τη Συμφωνημένη Ισχύ.
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -129,22 +201,20 @@
     {
         string? stringValue = e.Value?.ToString();
         
-
-        //if (Enum.TryParse(e.Value?.ToString(), out var result))
-        //{
-        //    supply.VoltageType = result;
-        //    if (result == VoltageType.LowVoltage)
-        //    {
-        //        await LoadLvParameters();
-        //    }
-        //    else
-        //    {
-        //        supply.MvContractedPowerKva = 50;
-        //        activeParam = null;
-        //    }
-
-        //}
-
+        // Διορθώθηκε: Δηλώνουμε ρητά τον τύπο <VoltageType> για να αποφευχθεί το σφάλμα CS0411
+        if (Enum.TryParse<VoltageType>(stringValue, out var result))
+        {
+            supply.VoltageType = result;
+            if (result == VoltageType.LowVoltage)
+            {
+                await LoadLvParameters();
+            }
+            else
+            {
+                supply.MvContractedPowerKva = 50;
+                activeParam = null;
+            }
+        }
     }
 
     private async Task OnLvCodeChanged(ChangeEventArgs e)
@@ -155,7 +225,8 @@
 
     private async Task LoadLvParameters()
     {
-        //activeParam = await CaseService.GetLvParameterByCodeAsync(currentLvCode);
+        // Διορθώθηκε: Βγήκε από τα σχόλια και καλείται το caseService για real-time ενημέρωση του UI
+        activeParam = await caseService.GetLvParameterByCodeAsync(currentLvCode);
     }
 
     private async Task HandleSaveCase()
@@ -166,10 +237,10 @@
             supply.MvContractedPowerKva = null;
         }
 
-        //await CaseService.SaveCaseAsync(customer, supply);
         await caseService.SaveCaseAsync(customer, supply);
         customer = new Customer();
         supply = new CustomerSupply { VoltageType = VoltageType.LowVoltage };
+        
         using var context = await DbFactory.CreateDbContextAsync();
         int totalCases = await context.Customers.CountAsync() + 1;
         protocolNumber = $"ΔΘ-{DateTime.Now.Year}-{totalCases:D3}";
