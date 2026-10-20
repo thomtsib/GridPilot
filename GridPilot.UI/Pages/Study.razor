@@ -71,10 +71,11 @@
     <hr />
     <div class="alert @(report.IsCompliant ? "alert-success" : "alert-danger") mt-3">
         <h5>Αποτελέσματα Μελέτης</h5>
-        <p><strong>Πτώση Τάσης:</strong> @report.VoltageDrop.VoltageDropPercentage % (@(report.VoltageDrop.IsCompliant ? "Εντός Ορίων ΔΕΔΔΗΕ <= 4%" : "Εκτός Ορίων"))</p>
-        <p><strong>Συνολικό Μήκος:</strong> @report.TotalNetworkLengthMeters m</p>
-    </div>
-}
+        <p><strong>Πτώση Τάσης:</strong> @report.VoltageDrop.VoltageDropPercentage % (@(report.VoltageDrop.IsCompliant ?
+               "Εντός Ορίων ΔΕΔΔΗΕ <= 4%" : "Εκτός Ορίων"))</p>
+            <p><strong>Συνολικό Μήκος:</strong> @report.TotalNetworkLengthMeters m</p>
+        </div>
+    }
 
 @code {
     private double loadKva = 85;
@@ -107,57 +108,57 @@
     }
 
     private async Task LoadTxtFile(InputFileChangeEventArgs e)
-{
-    var file = e.File;
-    if (file == null) return;
-
-    using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024); // Όριο 1MB
-    using var reader = new StreamReader(stream);
-    
-    var loadedPoints = new List<SurveyPointModel>();
-    int idCounter = 1;
-
-    string? line;
-    while ((line = await reader.ReadLineAsync()) != null)
     {
-        // Παράβλεψη κενών γραμμών ή σχολίων
-        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#") || line.StartsWith("//"))
-            continue;
+        var file = e.File;
+        if (file == null) return;
 
-        // 1. Καθαρισμός άκρων από αγκύλες ({ }), κόμματα και κενά
-        string cleanLine = line.Trim('{', '}', ' ', '\r', '\n');
+        using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024); // Όριο 1MB
+        using var reader = new StreamReader(stream);
+    
+        var loadedPoints = new List<SurveyPointModel>();
+        int idCounter = 1;
 
-        // 2. Διαχωρισμός με κόμμα ή ερωτηματικό
-        var parts = cleanLine.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                             .Select(p => p.Trim())
-                             .ToArray();
-        
-        // 3. Mapping: [0] = Σχόλιο, [1] = X, [2] = Y, [3] = Z
-        if (parts.Length >= 4)
+        string? line;
+        while ((line = await reader.ReadLineAsync()) != null)
         {
-            string desc = parts[0];
+            // Παράβλεψη κενών γραμμών ή σχολίων
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#") || line.StartsWith("//"))
+                continue;
 
-            if (double.TryParse(parts[1], System.Globalization.CultureInfo.InvariantCulture, out double x) &&
-                double.TryParse(parts[2], System.Globalization.CultureInfo.InvariantCulture, out double y) &&
-                double.TryParse(parts[3], System.Globalization.CultureInfo.InvariantCulture, out double z))
+            // 1. Καθαρισμός άκρων από αγκύλες ({ }), κόμματα και κενά
+            string cleanLine = line.Trim('{', '}', ' ', '\r', '\n');
+
+            // 2. Διαχωρισμός με κόμμα ή ερωτηματικό
+            var parts = cleanLine.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                 .Select(p => p.Trim())
+                                 .ToArray();
+        
+            // 3. Mapping: [0] = Σχόλιο, [1] = X, [2] = Y, [3] = Z
+            if (parts.Length >= 4)
             {
-                loadedPoints.Add(new SurveyPointModel
+                string desc = parts[0];
+
+                if (double.TryParse(parts[1], System.Globalization.CultureInfo.InvariantCulture, out double x) &&
+                    double.TryParse(parts[2], System.Globalization.CultureInfo.InvariantCulture, out double y) &&
+                    double.TryParse(parts[3], System.Globalization.CultureInfo.InvariantCulture, out double z))
                 {
-                    PointId = idCounter++,
-                    X = x,
-                    Y = y,
-                    Z = z,
-                    Description = desc
-                });
+                    loadedPoints.Add(new SurveyPointModel
+                    {
+                        PointId = idCounter++,
+                        X = x,
+                        Y = y,
+                        Z = z,
+                        Description = desc
+                    });
+                }
             }
         }
-    }
 
-    if (loadedPoints.Count > 0)
-    {
-        surveyPoints = loadedPoints;
+        if (loadedPoints.Count > 0)
+        {
+            surveyPoints = loadedPoints;
+        }
     }
-}
     private void Calculate()
     {
         var points = surveyPoints.Select(p => new SurveyPoint(p.PointId, p.X, p.Y, p.Z, p.Description)).ToList();
@@ -166,7 +167,8 @@
         {
             LoadKva = loadKva,
             LineVoltageVolts = lineVoltage,
-            LengthMeters = points.Count > 1 ? Math.Sqrt(Math.Pow(points.Last().X - points.First().X, 2) + Math.Pow(points.Last().Y - points.First().Y, 2)) : 0,
+            LengthMeters = points.Count > 1 ? Math.Sqrt(Math.Pow(points.Last().X - points.First().X, 2) + Math.Pow(points.Last().Y -
+points.First().Y, 2)) : 0,
             Conductor = new ConductorSpecs("ΣΚ 4x50 AL", 0.641, 0.09, 145, 0.62)
         };
 
